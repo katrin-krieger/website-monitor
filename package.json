@@ -1,0 +1,20 @@
+{
+  "dependencies": {
+    "aws-sdk": "^2.1559.0",
+    "dotenv": "^16.4.4",
+    "ky": "^1.2.0",
+    "slack-notify": "^2.0.7"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "name": "website-monitor",
+  "description": "",
+  "version": "1.0.0",
+  "main": "monitor.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "Katrin Krieger",
+  "license": "ISC"
+}
