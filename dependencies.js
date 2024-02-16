@@ -1,5 +1,5 @@
-const AWS = require('aws-sdk');
-const ky = require('ky').default;
-const dns = require('dns');
+import AWS from 'aws-sdk';
+import ky from 'ky';
+import dns from 'dns';
 
-module.exports = { AWS, ky, dns };
+export { AWS, ky, dns };

@@ -1,46 +1,69 @@
-const { AWS, ky, dns } = require('./dependencies');
+import AWS from 'aws-sdk';
+import ky from 'ky';
+import dns from 'dns';
+import { IncomingWebhook } from '@slack/webhook';
 
-exports.handler = async (event, context) => {
+const s3 = new AWS.S3();
+const bucketName = 'trc-websites-bucket'; // Replace with your bucket name
+const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL; // Retrieve Slack webhook URL from environment variable
+
+export async function handler(event, context) {
     try {
-        const s3 = new AWS.S3();
-        const websitesFile = await getFileFromS3(event.bucket, event.key, s3);
-        const websites = websitesFile.split('\n').map(url => url.trim()).filter(Boolean);
-        const results = await Promise.all(websites.map(url => checkWebsite(url)));
+        // Retrieve list of websites from S3
+        const data = await getFileFromS3(bucketName, 'websites.txt');
+
+        // Split data by newline and remove empty lines
+        const websites = data.Body.toString().split('\n').filter(Boolean);
+
+        // Check availability and DNS resolution for each website
+        const results = await Promise.all(websites.map(async (website) => {
+            const availability = await checkWebsiteAvailability(website);
+            const dnsResolution = await checkDNSResolution(website);
+            if (!availability || !dnsResolution) {
+                // Send Slack notification for unavailable website
+                sendSlackNotification(website);
+            }
+            return { url: website, status: availability && dnsResolution ? 'available' : 'unavailable' };
+        }));
+
         return results;
     } catch (error) {
         console.error('Error:', error);
         throw error;
     }
-};
+}
 
-async function getFileFromS3(bucket, key, s3) {
+async function getFileFromS3(bucket, key) {
     const params = {
         Bucket: bucket,
         Key: key
     };
-    const { Body } = await s3.getObject(params).promise();
-    return Body.toString('utf-8');
+    return await s3.getObject(params).promise();
 }
 
-async function checkWebsite(websiteUrl) {
-    const hostname = new URL(websiteUrl).hostname;
+async function checkWebsiteAvailability(website) {
     try {
-        await resolveHostname(hostname);
-        await ky.head(websiteUrl);
-        return { url: websiteUrl, status: 'available' };
+        await ky.head(website);
+        return true;
     } catch (error) {
-        return { url: websiteUrl, status: 'unavailable' };
+        return false;
     }
 }
 
-function resolveHostname(hostname) {
-    return new Promise((resolve, reject) => {
-        dns.resolve(hostname, (error, addresses) => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve(addresses);
-            }
+async function checkDNSResolution(hostname) {
+    return new Promise((resolve) => {
+        dns.resolve(hostname, (err) => {
+            resolve(!err);
         });
     });
 }
+
+function sendSlackNotification(website) {
+    const webhook = new IncomingWebhook(slackWebhookUrl);
+    const message = {
+        text: `:warning: Website ${website} is not available!`
+    };
+    webhook.send(message);
+}
+
+await handler({ }, null);

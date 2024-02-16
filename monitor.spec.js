@@ -1,5 +1,6 @@
-const lambdaHandler = require('./monitor');
-const { AWS, ky, dns } = require('./dependencies');
+import { handler } from './monitor'; // Import the handler function from your Lambda function module
+import { AWS, ky, dns } from './dependencies'; // Import the dependencies you need to mock
+import { jest } from '@jest/globals';
 
 jest.mock('./dependencies', () => ({
     AWS: {
@@ -39,13 +40,13 @@ describe('Lambda Function', () => {
                 { url: 'https://resolved.com', status: 'available' },
                 { url: 'https://unresolved.com', status: 'unavailable' }
             ];
-            const result = await lambdaHandler.handler(event, null);
+            const result = await handler(event, null);
             expect(result).toEqual(expectedResult);
         });
 
         it('should handle errors gracefully', async () => {
             const event = { bucket: 'testBucket', key: 'invalidKey' };
-            await expect(lambdaHandler.handler(event, null)).rejects.toThrowError('Invalid key');
+            await expect(handler(event, null)).rejects.toThrowError('Invalid key');
         });
     });
 });
